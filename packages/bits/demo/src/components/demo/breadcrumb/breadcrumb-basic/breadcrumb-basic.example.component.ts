@@ -15,7 +15,7 @@ export class BreadcrumbBasicExampleComponent implements OnInit, OnDestroy {
                 private routerState: ActivatedRoute,
                 private breadcrumbStateService: BreadcrumbStateService) { }
 
-    ngOnInit() {
+    ngOnInit(): void {
         this.breadcrumbSource = this.breadcrumbStateService.getBreadcrumbState(this.routerState, "/breadcrumb/");
         this.routerSubscription = this.breadcrumbStateService.getNavigationSubscription(this.router)
             .subscribe(() => this.breadcrumbSource = this.breadcrumbStateService.getBreadcrumbState(this.routerState, "/breadcrumb/"));
@@ -29,7 +29,7 @@ export class BreadcrumbBasicExampleComponent implements OnInit, OnDestroy {
         void this.router.navigate([routerState], {relativeTo: this.routerState});
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.routerSubscription.unsubscribe();
     }
 }
@@ -47,17 +47,23 @@ export class BreadcrumbBasicExampleComponent implements OnInit, OnDestroy {
                 a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus
                 asperiores repellat.
             </div>
-            <button id="nui-demo-breadcrumb-show-first-country"
-                    nui-button
-                    type="button"
-                    (click)="relativeNavigation('usa')"
-                    i18n>USA</button>
-            <button id="nui-demo-breadcrumb-show-second-country"
-                    class="ml-1"
-                    nui-button
-                    type="button"
-                    (click)="relativeNavigation('ukraine')"
-                    i18n>Ukraine</button>
+            <div>
+                <button id="nui-demo-breadcrumb-show-first-country"
+                        nui-button
+                        type="button"
+                        (click)="relativeNavigation('usa')"
+                        i18n>USA</button>
+                <button id="nui-demo-breadcrumb-show-second-country"
+                        class="ml-1"
+                        nui-button
+                        type="button"
+                        (click)="relativeNavigation('ukraine')"
+                        i18n>Ukraine</button>
+            </div>
+            <div>
+                Breadcrumbs should work with routerLink too.
+                <a routerLink="usa">USA</a> | <a routerLink="ukraine">Ukraine</a>
+            </div>
             <router-outlet></router-outlet>
         </div>`,
 })
