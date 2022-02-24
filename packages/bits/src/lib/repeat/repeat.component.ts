@@ -51,7 +51,7 @@ import {
 } from "./types";
 
 interface IDndItemDropped<T = unknown> {
-    item: DragRef<CdkDrag<T>>;
+    item: DragRef<T>;
     currentIndex: number;
     previousIndex: number;
     container: DropListRef<T[]>;
@@ -74,11 +74,10 @@ interface IDndItemDropped<T = unknown> {
     host: {
         "[class.virtual-scroll-viewport]": "virtualScroll",
         "[attr.role]": "role",
-        "[attr.aria-multiselectable]":
-            "selectionMode === repeatSelectionMode.multi || null",
+        "[attr.aria-multiselectable]": "isMultiselectable()",
     },
 })
-export class RepeatComponent<T extends IRepeatItem = unknown>
+export class RepeatComponent<T extends IRepeatItem = any>
 implements OnInit, OnDestroy, AfterViewInit, DoCheck, IFilterPub {
     /**
      * Turns on/off dragging functionality
@@ -146,6 +145,11 @@ implements OnInit, OnDestroy, AfterViewInit, DoCheck, IFilterPub {
     @HostBinding("style.width") width = "100%";
 
     /**
+     * Prevent item bodies from capturing clicks
+     */
+    @Input() preventRowClick: boolean = false;
+
+    /**
      * repeat item template
      */
     @Input() repeatItemTemplateRef: TemplateRef<any>;
@@ -202,6 +206,7 @@ implements OnInit, OnDestroy, AfterViewInit, DoCheck, IFilterPub {
      * Selected repeat objects
      */
     @Input() public selection: T[] = [];
+
     /**
      * Is emitted when on items order has changed
      */
@@ -288,14 +293,16 @@ implements OnInit, OnDestroy, AfterViewInit, DoCheck, IFilterPub {
         public logger: LoggerService,
         private iterableDiffers: IterableDiffers,
         public dragDropService: DragDrop,
-        private elRef: ElementRef<Element>
+        private elRef: ElementRef
     ) {}
 
     public ngOnInit(): void {
         this.intersectionObserver = new IntersectionObserver(
             this.intersectionObserverCallback
         );
-        this.intersectionObserver.observe(this.elRef.nativeElement);
+        if (this.elRef.nativeElement instanceof Element) {
+            this.intersectionObserver.observe(this.elRef.nativeElement);
+        }
 
         if (
             this.dragPreviewTemplateRef ||
@@ -394,40 +401,42 @@ implements OnInit, OnDestroy, AfterViewInit, DoCheck, IFilterPub {
      * @param event
      * @param item value object that is used in nui-repeat-item
      */
-    public itemClicked(event: any, item: T): void {
+    public itemClicked(event: MouseEvent, item: T): void {
         if (
             this.selectionMode === RepeatSelectionMode.none ||
             this.isItemDisabled(item)
         ) {
             return;
-        } else if (this.selectionMode === RepeatSelectionMode.multi) {
-            event.preventDefault(); // TODO: add reasoning for this
+        }
+
+        if (this.selectionMode === RepeatSelectionMode.multi) {
+            event.preventDefault(); // prevent invoking checkbox again
             this.selectionHasChanged = true;
             this.multiSelectionChanged(item);
-        } else {
-            if (
-                this.selectionMode ===
-                    RepeatSelectionMode.singleWithRequiredSelection ||
-                this.selectionMode === RepeatSelectionMode.radio
-            ) {
-                this.selection = [item];
-            }
-            if (
-                this.selectionMode === RepeatSelectionMode.single ||
-                this.selectionMode ===
-                    RepeatSelectionMode.radioWithNonRequiredSelection
-            ) {
-                if (this.selection.indexOf(item) !== -1) {
-                    this.selection = [];
-                } else {
-                    this.selection = [item];
-                }
-            }
-            this.changeDetector.markForCheck();
-            this.selectionHasChanged = true;
-            this.selectionChange.emit(this.selection);
             return;
         }
+
+        if (
+            this.selectionMode ===
+                RepeatSelectionMode.singleWithRequiredSelection ||
+            this.selectionMode === RepeatSelectionMode.radio
+        ) {
+            this.selection = [item];
+        }
+        if (
+            this.selectionMode === RepeatSelectionMode.single ||
+            this.selectionMode ===
+                RepeatSelectionMode.radioWithNonRequiredSelection
+        ) {
+            if (this.selection.indexOf(item) !== -1) {
+                this.selection = [];
+            } else {
+                this.selection = [item];
+            }
+        }
+        this.changeDetector.markForCheck();
+        this.selectionHasChanged = true;
+        this.selectionChange.emit(this.selection);
     }
 
     /**
@@ -445,7 +454,19 @@ implements OnInit, OnDestroy, AfterViewInit, DoCheck, IFilterPub {
         this.selectionChange.emit(this.selection);
     }
 
+    public isMultiselectable(): true | null {
+        return this.selectionMode === RepeatSelectionMode.multi || null;
+    }
+
     /* START - ITEM BEHAVIOUR DECIDERS */
+    public isItemClickable(item: T): boolean {
+        return !this.preventRowClick && !this.isItemDisabled(item);
+    }
+
+    public isItemSelectable(item: T): boolean {
+        return !this.isItemDisabled(item);
+    }
+
     public isItemDisabled(item: T): boolean {
         return (item as IRepeatItem).hasOwnProperty(
             nameof<IRepeatItem>("disabled")
@@ -509,7 +530,7 @@ implements OnInit, OnDestroy, AfterViewInit, DoCheck, IFilterPub {
 
     private itemDropped(event: IDndItemDropped<T>) {
         // CDK retrieves incorrectly event.previousIndex so we need to compute it ourselves
-        const item = event.item.data;
+        const item = event.item;
         const computedPreviousIndex = this.itemsSource.indexOf(item.data, 0);
         const oldSorting = [...this.itemsSource];
         const newSorting = [...this.itemsSource];
